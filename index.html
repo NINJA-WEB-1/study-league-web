@@ -680,19 +680,10 @@ const _storageReady = new Promise(res => { _storageReadyResolve = res; });
 
 async function initStorage(){
   if(typeof db === 'undefined'){ _storageReadyResolve(); return; }
-  try{
-    await Promise.race([
-      db.collection('studyleague').doc('__ping__').get(),
-      new Promise((_,r)=>setTimeout(()=>r(new Error('timeout')),5000))
-    ]);
-    _useFirebase = true;
-    console.log('✅ Firebase متصل');
-  }catch(e){
-    _useFirebase = false;
-    console.warn('⚠️ Firebase غير متاح، يعمل محلياً');
-  }finally{
-    _storageReadyResolve();
-  }
+  // نفترض إن Firebase شغال مباشرة بدون ping — أسرع وأموثوق
+  _useFirebase = true;
+  console.log('✅ Firebase جاهز');
+  _storageReadyResolve();
 }
 
 async function sGet(key){
