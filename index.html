@@ -22,7 +22,6 @@ const firebaseConfig = {
   appId: "1:350916531539:web:8a1f6f869d5c810c047da6",
   measurementId: "G-CEG1LGXVQV"
 };
-
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 </script>
@@ -229,6 +228,9 @@ body{font-family:'Tajawal',sans-serif;background:var(--surface);color:var(--text
 .change-item strong{color:var(--fire);}
 body.night-mode .review-opt{background:var(--navy-mid);color:var(--text-main);border-color:#334155;}
 body.night-mode .review-opt:hover{border-color:var(--slate-light);}
+body.night-mode .review-opt.student-pick{border-color:var(--gold);background:rgba(245,200,66,.12);color:var(--gold);}
+body.night-mode .review-opt.admin-changed{border-color:var(--emerald);background:rgba(16,185,129,.12);color:var(--emerald);}
+body.night-mode .review-opt.student-pick.overridden{border-color:rgba(220,38,38,.5);background:rgba(220,38,38,.1);color:#FCA5A5;text-decoration:line-through;}
 .admin-note-input{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:'Tajawal',sans-serif;outline:none;background:var(--surface);margin-top:6px;}
 .admin-note-input:focus{border-color:var(--gold);}
 .ann-input{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px;font-size:14px;font-family:'Tajawal',sans-serif;resize:vertical;outline:none;background:var(--surface);min-height:70px;}
@@ -316,6 +318,24 @@ body.night-mode .rank-position{background:var(--navy-mid);color:var(--text-muted
 
 @keyframes shake{0%,100%{transform:translateX(0);}20%{transform:translateX(-4px);}40%{transform:translateX(4px);}60%{transform:translateX(-4px);}80%{transform:translateX(4px);}}
 .shake{animation:shake .4s ease;}
+
+/* ── BONUS SECTION ── */
+.bonus-section{margin-bottom:22px;}
+.bonus-section-title{font-size:15px;font-weight:800;color:var(--text-main);margin-bottom:6px;padding-bottom:8px;border-bottom:2px solid var(--border);display:flex;align-items:center;gap:8px;}
+.bonus-subtitle{font-size:12px;color:var(--text-muted);margin-bottom:14px;background:rgba(16,185,129,.07);border:1px solid rgba(16,185,129,.2);border-radius:8px;padding:8px 12px;}
+.bonus-grid{display:flex;flex-direction:column;gap:8px;}
+.bonus-item{display:flex;align-items:center;gap:10px;padding:11px 14px;border:2px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);cursor:pointer;transition:all .2s;}
+.bonus-item:hover{border-color:var(--slate-light);background:white;}
+.bonus-item.selected{border-color:var(--emerald);background:rgba(16,185,129,.07);}
+.bonus-check{width:22px;height:22px;border-radius:6px;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:13px;transition:all .2s;}
+.bonus-item.selected .bonus-check{background:var(--emerald);border-color:var(--emerald);color:white;}
+.bonus-label{flex:1;font-size:13px;font-weight:600;color:var(--text-main);}
+.bonus-pts{background:var(--navy);color:var(--gold);font-size:11px;font-weight:800;padding:2px 8px;border-radius:10px;flex-shrink:0;}
+.bonus-total-bar{background:linear-gradient(135deg,var(--emerald),var(--emerald-dark));border-radius:var(--radius-sm);padding:12px 16px;margin-bottom:14px;color:white;display:flex;align-items:center;justify-content:space-between;}
+.bonus-total-label{font-size:13px;opacity:.85;}
+.bonus-total-num{font-size:28px;font-weight:900;}
+body.night-mode .bonus-item{background:var(--navy-mid);color:var(--text-main);border-color:#334155;}
+body.night-mode .bonus-item:hover{background:#2d3f55;}
 </style>
 </head>
 <body>
@@ -496,6 +516,17 @@ body.night-mode .rank-position{background:var(--navy-mid);color:var(--text-muted
       <textarea class="ann-input" id="studentNote" placeholder="أي شيء تريد إخبار المشرف عنه..."></textarea>
     </div>
 
+    <!-- ── BONUS SECTION ── -->
+    <div class="bonus-section">
+      <div class="bonus-section-title">⭐ نقاط إضافية (اختياري)</div>
+      <div class="bonus-subtitle">✅ لو عملت أي حاجة من دول الأسبوع ده، اختارها وهتتضاف على درجتك — لو معملتش خلاص!</div>
+      <div class="bonus-total-bar">
+        <div class="bonus-total-label">إجمالي البونص</div>
+        <div><span class="bonus-total-num" id="bonusTotalNum">+0</span> <span style="font-size:13px;opacity:.7;">نقطة</span></div>
+      </div>
+      <div class="bonus-grid" id="bonusGrid"></div>
+    </div>
+
     <button class="submit-btn" id="submitBtn" onclick="submitEval()">📤 إرسال التقييم</button>
   </div>
 
@@ -625,6 +656,17 @@ const SCHED_OPTS = [
   {label:'☀️ الاثنين صباحاً — خصم أكبر', val:0.5},
   {label:'❌ بعد كده أو لم أبعث', val:0},
 ];
+const BONUS_ITEMS = [
+  {id:'b1', label:'Mind Map أو ملخص مرسوم', icon:'📌', pts:3},
+  {id:'b2', label:'ابتكار وسيلة جديدة للحفظ', icon:'💡', pts:2},
+  {id:'b3', label:'مشاركة مصدر تعليمي مفيد', icon:'🎥', pts:1},
+  {id:'b4', label:'شرح جزء صعب / مساعدة صاحبك', icon:'👩‍🏫', pts:3},
+  {id:'b5', label:'حل مشكلة لصاحبك', icon:'🧩', pts:2},
+  {id:'b6', label:'تحسن في امتحان الشهر', icon:'📈', pts:3},
+  {id:'b7', label:'مراجعة أخطاء الامتحان', icon:'📝', pts:2},
+  {id:'b8', label:'الالتزام الأسبوعي الكامل', icon:'📅', pts:2},
+  {id:'b9', label:'جودة ملخص أو تصميم', icon:'🎨', pts:1},
+];
 
 // ══════════════════════════════════════════════════════════════
 //  STORAGE
@@ -632,21 +674,24 @@ const SCHED_OPTS = [
 // ══════════════════════════════════════════════════════════════
 //  STORAGE — Firebase + localStorage fallback
 // ══════════════════════════════════════════════════════════════
-let _useFirebase = false; // يتحدد عند بدء التشغيل
+let _useFirebase = false;
+let _storageReadyResolve;
+const _storageReady = new Promise(res => { _storageReadyResolve = res; });
 
-// فحص اتصال Firebase مرة واحدة عند تحميل الصفحة
 async function initStorage(){
-  if(typeof db === 'undefined') return;
+  if(typeof db === 'undefined'){ _storageReadyResolve(); return; }
   try{
     await Promise.race([
       db.collection('studyleague').doc('__ping__').get(),
-      new Promise((_,r)=>setTimeout(()=>r(new Error('timeout')),3000))
+      new Promise((_,r)=>setTimeout(()=>r(new Error('timeout')),5000))
     ]);
     _useFirebase = true;
     console.log('✅ Firebase متصل');
   }catch(e){
     _useFirebase = false;
     console.warn('⚠️ Firebase غير متاح، يعمل محلياً');
+  }finally{
+    _storageReadyResolve();
   }
 }
 
@@ -689,6 +734,7 @@ let currentUser=null;
 let selectedRole='student';
 let selectedAnswers={};
 let selectedSched=null;
+let selectedBonuses=new Set();
 let currentRankView='week';
 let SHEETS_URL='';
 
@@ -760,6 +806,15 @@ async function handleLogin(){
   errEl.style.display='none';
   if(!username){errEl.textContent='أدخل اسم المستخدم!';errEl.style.display='block';return;}
   if(!password){errEl.textContent='أدخل كلمة المرور!';errEl.style.display='block';return;}
+
+  // ننتظر Firebase يتجهز قبل أي عملية
+  const loginBtn=document.querySelector('.btn-primary');
+  const origText=loginBtn.textContent;
+  loginBtn.textContent='⏳ جاري الاتصال...';
+  loginBtn.disabled=true;
+  await _storageReady;
+  loginBtn.textContent=origText;
+  loginBtn.disabled=false;
 
   let users;
   try{ users=await loadUsers(); }
@@ -858,6 +913,34 @@ function buildForm(){
     btn.onclick=()=>selectSched(opt.val,btn);se.appendChild(btn);
   });
   updateScorePreview();
+  renderBonusGrid();
+}
+function renderBonusGrid(){
+  const grid=document.getElementById('bonusGrid');
+  if(!grid) return;
+  grid.innerHTML='';
+  BONUS_ITEMS.forEach(item=>{
+    const sel=selectedBonuses.has(item.id);
+    const div=document.createElement('div');
+    div.className='bonus-item'+(sel?' selected':'');
+    div.innerHTML=`<div class="bonus-check">${sel?'✓':''}</div><div class="bonus-label">${item.icon} ${item.label}</div><div class="bonus-pts">+${item.pts}</div>`;
+    div.onclick=()=>toggleBonus(item.id);
+    grid.appendChild(div);
+  });
+  updateBonusTotal();
+}
+function toggleBonus(id){
+  if(selectedBonuses.has(id)) selectedBonuses.delete(id);
+  else selectedBonuses.add(id);
+  renderBonusGrid();
+}
+function updateBonusTotal(){
+  const total=BONUS_ITEMS.filter(i=>selectedBonuses.has(i.id)).reduce((s,i)=>s+i.pts,0);
+  const el=document.getElementById('bonusTotalNum');
+  if(el) el.textContent='+'+total;
+}
+function calcBonusTotal(){
+  return BONUS_ITEMS.filter(i=>selectedBonuses.has(i.id)).reduce((s,i)=>s+i.pts,0);
 }
 function selectAnswer(pillar,qid,val,btn){
   document.querySelectorAll(`[data-qid="${qid}"]`).forEach(b=>b.classList.remove('selected'));
@@ -889,6 +972,7 @@ async function submitEval(){
   if(selectedSched===null){showToast('⚠️ حدد متى أرسلت الجدول!');return;}
   const wk=getWeekKey();
   const commitment=calcPillar(COMMITMENT_QS),consistency=calcPillar(CONSISTENCY_QS);
+  const bonusTotal=calcBonusTotal();
   const totalStudent=commitment+consistency+selectedSched;
   const sub={
     id:`${currentUser.id}-${wk}-${Date.now()}`,
@@ -897,22 +981,24 @@ async function submitEval(){
     answers:{...selectedAnswers},schedScore:selectedSched,
     note:document.getElementById('studentNote').value.trim(),
     pillarScores:{commitment,consistency,organization:null},
+    bonuses:[...selectedBonuses],totalBonus:bonusTotal,
     totalStudent,totalOrg:null,adminNote:'',adminApproved:false,
   };
   const subs=await loadSubs();
   const filtered=subs.filter(s=>!(s.userId===currentUser.id&&s.week===wk));
   await saveSubs([...filtered,sub]);
   syncToSheets(sub);
-  document.getElementById('successScore').textContent=totalStudent.toFixed(1);
+  document.getElementById('successScore').textContent=(totalStudent+bonusTotal).toFixed(1);
   const ranked=getRanked([...filtered,sub],'week');
   const myRank=ranked.findIndex(r=>r.userId===currentUser.id)+1;
   document.getElementById('successRankMsg').textContent=myRank?`أنت رقم ${myRank} في الترتيب هذا الأسبوع 🎯`:'';
   document.getElementById('successOverlay').classList.add('show');
   spawnConfetti();
-  selectedAnswers={};selectedSched=null;
+  selectedAnswers={};selectedSched=null;selectedBonuses=new Set();
   document.querySelectorAll('.opt-btn').forEach(b=>b.classList.remove('selected'));
   document.getElementById('studentNote').value='';
   updateScorePreview();
+  renderBonusGrid();
   await refreshAll();
 }
 function closeSuccess(){
@@ -941,7 +1027,7 @@ function getRanked(subs,view){
   const map={};
   f.forEach(s=>{
     if(!map[s.userId])map[s.userId]={userId:s.userId,name:s.studentName,total:0,weeks:0};
-    map[s.userId].total+=s.totalStudent+(s.totalOrg||0);
+    map[s.userId].total+=s.totalStudent+(s.totalOrg||0)+(s.totalBonus||0);
     map[s.userId].weeks++;
   });
   return Object.values(map).sort((a,b)=>b.total-a.total);
@@ -1249,8 +1335,8 @@ function renderReviewCard(sub){
 
   function qRows(qs){
     return qs.map(q=>{
-      const studentVal = sub.answers?.[q.id]?.val ?? null;
-      const currentVal = edits.answers[q.id]?.val ?? studentVal;
+      const studentVal = parseFloat(sub.answers?.[q.id]?.val) ?? null;
+      const currentVal = parseFloat(edits.answers[q.id]?.val) ?? studentVal;
       const opts = ANSWER_OPTS.map(opt=>{
         const isStudentPick = opt.val === studentVal;
         const isCurrentPick = opt.val === currentVal;
@@ -1270,8 +1356,8 @@ function renderReviewCard(sub){
 
   function schedRows(){
     return SCHED_OPTS.map(opt=>{
-      const studentVal = sub.schedScore ?? 0;
-      const currentVal = edits.schedScore;
+      const studentVal = parseFloat(sub.schedScore ?? 0);
+      const currentVal = parseFloat(edits.schedScore);
       const isStudentPick = opt.val === studentVal;
       const isCurrentPick = opt.val === currentVal;
       const wasChanged = isStudentPick && opt.val !== currentVal;
@@ -1283,13 +1369,38 @@ function renderReviewCard(sub){
     }).join('');
   }
 
+  function bonusRows(){
+    const adminBonuses = edits.bonuses ?? (sub.bonuses ? [...sub.bonuses] : []);
+    return BONUS_ITEMS.map(item=>{
+      const studentHad = (sub.bonuses||[]).includes(item.id);
+      const adminHas   = adminBonuses.includes(item.id);
+      let cls='bonus-item';
+      if(adminHas) cls+=' selected';
+      const addedByAdmin  = adminHas && !studentHad;
+      const removedByAdmin= !adminHas && studentHad;
+      const badge = addedByAdmin
+        ? `<span style="font-size:10px;background:var(--emerald);color:white;padding:1px 6px;border-radius:8px;margin-right:4px;">+ أضافه المشرف</span>`
+        : removedByAdmin
+          ? `<span style="font-size:10px;background:var(--crimson);color:white;padding:1px 6px;border-radius:8px;margin-right:4px;">✕ حذفه المشرف</span>`
+          : studentHad
+            ? `<span style="font-size:10px;background:var(--gold);color:var(--navy);padding:1px 6px;border-radius:8px;margin-right:4px;">✓ اختاره الطالب</span>`
+            : '';
+      return `<div class="${cls}" onclick="reviewToggleBonus('${sid}','${item.id}')">
+        <div class="bonus-check">${adminHas?'✓':''}</div>
+        <div class="bonus-label">${item.icon} ${item.label} ${badge}</div>
+        <div class="bonus-pts">+${item.pts}</div>
+      </div>`;
+    }).join('');
+  }
+
   // Compute current preview scores
   const cScore = Math.min(5, COMMITMENT_QS.reduce((s,q)=>s+(edits.answers[q.id]?.val??0),0));
   const sScore = Math.min(5, CONSISTENCY_QS.reduce((s,q)=>s+(edits.answers[q.id]?.val??0),0));
   const scScore = edits.schedScore ?? 0;
   const totalStudent = cScore + sScore + scScore;
   const orgVal = sub.totalOrg != null ? sub.totalOrg : 0;
-  const grandTotal = totalStudent + orgVal;
+  const bonusVal = sub.totalBonus || 0;
+  const grandTotal = totalStudent + orgVal + bonusVal;
 
   const approvedBlock = '';
 
@@ -1319,15 +1430,24 @@ function renderReviewCard(sub){
     <div class="review-section-title">🟡 الاستمرارية</div>
     ${qRows(CONSISTENCY_QS)}
 
+    <div class="review-section-title">⭐ البونص (المشرف يتحكم)</div>
+    <div class="bonus-subtitle" style="margin-bottom:10px;">الإجابات الذهبية = اختيار الطالب — المشرف يقدر يضيف أو يحذف</div>
+    <div class="bonus-grid" id="reviewBonusGrid_${sid}">${bonusRows()}</div>
+
     <div class="review-section-title">📊 ملخص الدرجات الحالية</div>
     <div class="review-score-row">
       <div class="review-score-pill"><div class="rv" id="rv_commit_${sid}">${cScore.toFixed(1)}</div><div class="rl">التزام /5</div></div>
       <div class="review-score-pill"><div class="rv" id="rv_cons_${sid}">${sScore.toFixed(1)}</div><div class="rl">استمرارية /5</div></div>
       <div class="review-score-pill"><div class="rv" id="rv_sched_${sid}">${scScore}</div><div class="rl">جدول /1</div></div>
       <div class="review-score-pill"><div class="rv" id="rv_student_${sid}">${totalStudent.toFixed(1)}</div><div class="rl">مجموع طالب /11</div></div>
-      <div class="review-score-pill" style="background:rgba(245,200,66,.1);border-color:var(--gold);"><div class="rv" style="color:var(--gold-dark);" id="rv_total_${sid}">${grandTotal.toFixed(1)}</div><div class="rl">الإجمالي /16</div></div>
+      <div class="review-score-pill" style="background:rgba(16,185,129,.07);border-color:var(--emerald);"><div class="rv" style="color:var(--emerald-dark);" id="rv_bonus_${sid}">+${bonusVal}</div><div class="rl">بونص</div></div>
+      <div class="review-score-pill" style="background:rgba(245,200,66,.1);border-color:var(--gold);"><div class="rv" style="color:var(--gold-dark);" id="rv_total_${sid}">${grandTotal.toFixed(1)}</div><div class="rl">الإجمالي</div></div>
     </div>
 
+    ${(sub.bonuses && sub.bonuses.length) ? `<div style="background:rgba(16,185,129,.07);border:1px solid rgba(16,185,129,.2);border-radius:8px;padding:8px 12px;font-size:12px;color:var(--emerald-dark);margin-bottom:8px;">
+      <div style="font-weight:800;margin-bottom:5px;">⭐ البونص المختار (${sub.totalBonus||0} نقطة):</div>
+      ${sub.bonuses.map(id=>{const b=BONUS_ITEMS.find(x=>x.id===id);return b?`<div style="margin-bottom:3px;">${b.icon} ${b.label} <span style="font-weight:800;">+${b.pts}</span></div>`:'';}).join('')}
+    </div>` : ''}
     ${sub.note ? `<div style="background:rgba(124,58,237,.07);border:1px solid rgba(124,58,237,.15);border-radius:8px;padding:8px 12px;font-size:12px;color:var(--violet);margin-bottom:8px;">💬 ملاحظة الطالب: ${sub.note}</div>` : ''}
 
     <button class="review-confirm-btn" onclick="confirmSubReview('${sid}')">✅ تأكيد تقييم الطالب وإضافة الدرجات</button>
@@ -1337,14 +1457,13 @@ function renderReviewCard(sub){
 function reviewSetAnswer(sid, qid, pillar, val, btn){
   if(!reviewEdits[sid]) return;
   reviewEdits[sid].answers[qid] = {pillar, val};
-  // Update button states in this question
   const optsEl = btn.closest('.review-opts');
   optsEl.querySelectorAll('.review-opt').forEach((b,i)=>{
     const bVal = ANSWER_OPTS[i].val;
     const sub = getSubById(sid);
     if(!sub) return;
-    const studentVal = sub.answers?.[qid]?.val ?? null;
-    const currentVal = reviewEdits[sid].answers[qid]?.val;
+    const studentVal = parseFloat(sub.answers?.[qid]?.val) ?? null;
+    const currentVal = parseFloat(reviewEdits[sid].answers[qid]?.val);
     b.className='review-opt';
     if(bVal===currentVal && bVal===studentVal) b.classList.add('student-pick');
     else if(bVal===currentVal) b.classList.add('admin-changed');
@@ -1360,12 +1479,47 @@ function reviewSetSched(sid, val, btn){
   const sub = getSubById(sid);
   optsEl.querySelectorAll('.review-opt').forEach((b,i)=>{
     const bVal = SCHED_OPTS[i].val;
-    const studentVal = sub ? (sub.schedScore??0) : 0;
+    const studentVal = parseFloat(sub ? (sub.schedScore??0) : 0);
     b.className='review-opt';
     if(bVal===val && bVal===studentVal) b.classList.add('student-pick');
     else if(bVal===val) b.classList.add('admin-changed');
     else if(bVal===studentVal) b.classList.add('student-pick','overridden');
   });
+  updateReviewScores(sid);
+}
+
+function reviewToggleBonus(sid, itemId){
+  if(!reviewEdits[sid]) return;
+  const sub = getSubById(sid);
+  if(!reviewEdits[sid].bonuses) reviewEdits[sid].bonuses = sub?.bonuses ? [...sub.bonuses] : [];
+  const idx = reviewEdits[sid].bonuses.indexOf(itemId);
+  if(idx>-1) reviewEdits[sid].bonuses.splice(idx,1);
+  else reviewEdits[sid].bonuses.push(itemId);
+  // Re-render bonus section
+  const bonusEl = document.getElementById('reviewBonusGrid_'+sid);
+  if(bonusEl){
+    const adminBonuses = reviewEdits[sid].bonuses;
+    bonusEl.innerHTML = BONUS_ITEMS.map(item=>{
+      const studentHad = (sub?.bonuses||[]).includes(item.id);
+      const adminHas   = adminBonuses.includes(item.id);
+      let cls='bonus-item';
+      if(adminHas) cls+=' selected';
+      const addedByAdmin  = adminHas && !studentHad;
+      const removedByAdmin= !adminHas && studentHad;
+      const badge = addedByAdmin
+        ? `<span style="font-size:10px;background:var(--emerald);color:white;padding:1px 6px;border-radius:8px;margin-right:4px;">+ أضافه المشرف</span>`
+        : removedByAdmin
+          ? `<span style="font-size:10px;background:var(--crimson);color:white;padding:1px 6px;border-radius:8px;margin-right:4px;">✕ حذفه المشرف</span>`
+          : studentHad
+            ? `<span style="font-size:10px;background:var(--gold);color:var(--navy);padding:1px 6px;border-radius:8px;margin-right:4px;">✓ اختاره الطالب</span>`
+            : '';
+      return `<div class="${cls}" onclick="reviewToggleBonus('${sid}','${item.id}')">
+        <div class="bonus-check">${adminHas?'✓':''}</div>
+        <div class="bonus-label">${item.icon} ${item.label} ${badge}</div>
+        <div class="bonus-pts">+${item.pts}</div>
+      </div>`;
+    }).join('');
+  }
   updateReviewScores(sid);
 }
 
@@ -1376,17 +1530,21 @@ function getSubById(sid){ return (_subsCache||[]).find(s=>s.id===sid); }
 function updateReviewScores(sid){
   const edits = reviewEdits[sid]; if(!edits) return;
   const sub = getSubById(sid);
-  const cScore = Math.min(5, COMMITMENT_QS.reduce((s,q)=>s+(edits.answers[q.id]?.val??0),0));
-  const sScore = Math.min(5, CONSISTENCY_QS.reduce((s,q)=>s+(edits.answers[q.id]?.val??0),0));
+  const cScore = Math.min(5, COMMITMENT_QS.reduce((s,q)=>s+(parseFloat(edits.answers[q.id]?.val)||0),0));
+  const sScore = Math.min(5, CONSISTENCY_QS.reduce((s,q)=>s+(parseFloat(edits.answers[q.id]?.val)||0),0));
   const scScore = edits.schedScore ?? 0;
   const total = cScore + sScore + scScore;
   const org = sub ? (sub.totalOrg ?? 0) : 0;
+  const adminBonuses = edits.bonuses ?? (sub?.bonuses ?? []);
+  const bonusTotal = BONUS_ITEMS.filter(i=>adminBonuses.includes(i.id)).reduce((s,i)=>s+i.pts,0);
   const el=id=>document.getElementById(id);
   if(el(`rv_commit_${sid}`)) el(`rv_commit_${sid}`).textContent = cScore.toFixed(1);
   if(el(`rv_cons_${sid}`)) el(`rv_cons_${sid}`).textContent = sScore.toFixed(1);
   if(el(`rv_sched_${sid}`)) el(`rv_sched_${sid}`).textContent = scScore;
   if(el(`rv_student_${sid}`)) el(`rv_student_${sid}`).textContent = total.toFixed(1);
-  if(el(`rv_total_${sid}`)) el(`rv_total_${sid}`).textContent = (total+org).toFixed(1);
+  const bonusEl = document.getElementById('rv_bonus_'+sid);
+  if(bonusEl) bonusEl.textContent = '+'+bonusTotal;
+  if(el(`rv_total_${sid}`)) el(`rv_total_${sid}`).textContent = (total+org+bonusTotal).toFixed(1);
 }
 
 async function confirmSubReview(sid){
@@ -1397,10 +1555,12 @@ async function confirmSubReview(sid){
   const edits = reviewEdits[sid];
 
   // Compute new scores
-  const newCommit = Math.min(5, COMMITMENT_QS.reduce((s,q)=>s+(edits.answers[q.id]?.val??0),0));
-  const newCons = Math.min(5, CONSISTENCY_QS.reduce((s,q)=>s+(edits.answers[q.id]?.val??0),0));
+  const newCommit = Math.min(5, COMMITMENT_QS.reduce((s,q)=>s+(parseFloat(edits.answers[q.id]?.val)||0),0));
+  const newCons = Math.min(5, CONSISTENCY_QS.reduce((s,q)=>s+(parseFloat(edits.answers[q.id]?.val)||0),0));
   const newSched = edits.schedScore ?? 0;
   const newTotalStudent = newCommit + newCons + newSched;
+  const adminBonuses = edits.bonuses ?? (sub.bonuses ?? []);
+  const newBonusTotal = BONUS_ITEMS.filter(i=>adminBonuses.includes(i.id)).reduce((s,i)=>s+i.pts,0);
 
   // Detect changes vs original
   const changes = [];
@@ -1428,6 +1588,8 @@ async function confirmSubReview(sid){
     schedScore: edits.schedScore,
     pillarScores: {...sub.pillarScores, commitment:newCommit, consistency:newCons},
     totalStudent: newTotalStudent,
+    bonuses: adminBonuses,
+    totalBonus: newBonusTotal,
     adminApproved: true,
     adminReviewedAt: new Date().toISOString(),
     adminChanges: changes,
@@ -1595,9 +1757,9 @@ function stopRealtimeListeners(){
 // ══════════════════════════════════════════════════════════════
 //  INIT ON PAGE LOAD
 // ══════════════════════════════════════════════════════════════
-(function init(){
-  // فحص Firebase في الخلفية — مرة واحدة عند تحميل الصفحة
-  initStorage();
+(async function init(){
+  // نبدأ Firebase ونخزن النتيجة عشان handleLogin ما يحتاجش يستنى
+  initStorage(); // async بتكمل في الخلفية وتحل _storageReady لما تخلص
   // Restore night mode
   try{if(localStorage.getItem('sl_night')==='1'){document.body.classList.add('night-mode');const b=document.getElementById('nightBtn');if(b)b.textContent='☀️';}}catch{}
   // Load saved creds for default role (student)
