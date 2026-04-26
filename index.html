@@ -107,7 +107,7 @@ body{font-family:'Tajawal',sans-serif;background:var(--surface);color:var(--text
 
 /* ── RANKING PAGE ── */
 .ranking-tabs{display:flex;background:var(--surface);border-radius:10px;padding:4px;margin-bottom:14px;gap:4px;border:1px solid var(--border);}
-.admin-reset-bar{display:none;gap:8px;margin-bottom:10px;}
+.admin-reset-bar{display:none;flex-direction:column;gap:8px;margin-bottom:10px;}
 .admin-reset-bar.visible{display:flex;}
 .reset-week-btn,.reset-month-btn{flex:1;padding:8px 10px;border-radius:8px;font-size:12px;font-weight:700;font-family:'Tajawal',sans-serif;cursor:pointer;border:none;transition:all .2s;}
 .reset-week-btn{background:rgba(220,38,38,.1);color:var(--crimson);border:1px solid rgba(220,38,38,.25);}
@@ -513,10 +513,54 @@ body.night-mode .bonus-item:hover{background:#2d3f55;}
       <button class="ranking-tab active" onclick="switchRankView('week',this)">الأسبوع</button>
       <button class="ranking-tab" onclick="switchRankView('month',this)">الشهر</button>
     </div>
-    <!-- أزرار المسح — للمشرف فقط -->
+    <!-- كونترولز المشرف — تتغير حسب التبويب النشط -->
     <div class="admin-reset-bar" id="adminResetBar">
-      <button class="reset-week-btn" onclick="resetWeekData()">🗑️ مسح أسبوع حالي</button>
-      <button class="reset-month-btn" onclick="resetMonthData()">🗑️ مسح شهر حالي</button>
+      <!-- كونترولز الأسبوع -->
+      <div id="adminWeekControls" style="width:100%;">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px;">
+          <div style="font-size:12px;font-weight:700;color:var(--text-muted);margin-bottom:8px;">📅 تحديد الأسبوع الحالي يدوياً</div>
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+            <input type="number" id="weekYearInput" min="2020" max="2099"
+              style="width:72px;padding:6px 8px;border:1px solid var(--border);border-radius:7px;font-size:14px;font-weight:800;font-family:'Tajawal',sans-serif;text-align:center;outline:none;"
+              placeholder="2026">
+            <span style="font-size:13px;color:var(--text-muted);">-</span>
+            <span style="font-size:13px;font-weight:700;">W</span>
+            <input type="number" id="weekNumInput" min="1" max="52"
+              style="width:55px;padding:6px 8px;border:1px solid var(--border);border-radius:7px;font-size:14px;font-weight:800;font-family:'Tajawal',sans-serif;text-align:center;outline:none;"
+              placeholder="17">
+            <button onclick="setWeekNumManual()"
+              style="padding:6px 14px;background:var(--navy);color:var(--gold);border:none;border-radius:7px;font-size:12px;font-weight:800;font-family:'Tajawal',sans-serif;cursor:pointer;">
+              تحديد ✓
+            </button>
+          </div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:6px;" id="weekCurrentLabel"></div>
+        </div>
+        <button class="reset-week-btn" onclick="resetWeekData()" style="width:100%;">▶️ بدء أسبوع جديد</button>
+      </div>
+      <!-- كونترولز الشهر -->
+      <div id="adminMonthControls" style="width:100%;display:none;">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px;">
+          <div style="font-size:12px;font-weight:700;color:var(--text-muted);margin-bottom:8px;">📆 تحديد الشهر الحالي يدوياً</div>
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+            <select id="monthSelect"
+              style="padding:6px 8px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-weight:700;font-family:'Tajawal',sans-serif;outline:none;background:white;">
+              <option value="1">يناير</option><option value="2">فبراير</option><option value="3">مارس</option>
+              <option value="4">أبريل</option><option value="5">مايو</option><option value="6">يونيو</option>
+              <option value="7">يوليو</option><option value="8">أغسطس</option><option value="9">سبتمبر</option>
+              <option value="10">أكتوبر</option><option value="11">نوفمبر</option><option value="12">ديسمبر</option>
+            </select>
+            <input type="number" id="monthYearInput" min="2020" max="2099"
+              style="width:72px;padding:6px 8px;border:1px solid var(--border);border-radius:7px;font-size:14px;font-weight:800;font-family:'Tajawal',sans-serif;text-align:center;outline:none;"
+              placeholder="2026">
+            <button onclick="setMonthManual()"
+              style="padding:6px 14px;background:var(--navy);color:var(--gold);border:none;border-radius:7px;font-size:12px;font-weight:800;font-family:'Tajawal',sans-serif;cursor:pointer;">
+              تحديد ✓
+            </button>
+          </div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:6px;" id="monthCurrentLabel"></div>
+        </div>
+        <button class="reset-month-btn" onclick="resetMonthData()" style="width:100%;">▶️ بدء شهر جديد</button>
+      </div>
     </div>
     <div id="rankList"><div class="empty-state"><div class="empty-icon">😴</div><p>مفيش بيانات لسه</p></div></div>
   </div>
@@ -774,36 +818,46 @@ let selectedSched=null;
 let selectedBonuses=new Set();
 let currentRankView='week';
 let SHEETS_URL='';
+let _weekNum=17;    // رقم الأسبوع (1-52)
+let _weekYear=2026; // سنة الأسبوع
+let _monthNum=4;    // رقم الشهر (1-12)
+let _monthYear=2026;// سنة الشهر
+
+// احسب الأسبوع الحالي من التاريخ الحقيقي (يبدأ يوم السبت)
+function calcRealWeek(d=new Date()){
+  const date=new Date(d.getFullYear(),d.getMonth(),d.getDate());
+  const day=date.getDay();
+  date.setDate(date.getDate()-((day+1)%7));
+  const yr=date.getFullYear();
+  const jan1=new Date(yr,0,1);
+  const firstSat=new Date(yr,0,1+(6-jan1.getDay()+7)%7);
+  if(date<firstSat){
+    const py=yr-1;const pj=new Date(py,0,1);
+    const pfs=new Date(py,0,1+(6-pj.getDay()+7)%7);
+    return{weekNum:Math.round((date-pfs)/(7*86400000))+1,weekYear:py};
+  }
+  return{weekNum:Math.round((date-firstSat)/(7*86400000))+1,weekYear:yr};
+}
+function calcRealMonth(d=new Date()){return{monthNum:d.getMonth()+1,monthYear:d.getFullYear()};}
 
 // ══════════════════════════════════════════════════════════════
 //  HELPERS
 // ══════════════════════════════════════════════════════════════
-function getWeekKey(d=new Date()){
-  // الأسبوع يبدأ يوم السبت
-  const date=new Date(d.getFullYear(),d.getMonth(),d.getDate());
-  const day=date.getDay(); // 0=أحد ... 6=سبت
-  date.setDate(date.getDate()-((day+1)%7)); // ارجع لآخر سبت
-  const yr=date.getFullYear();
-  const jan1=new Date(yr,0,1);
-  const jan1Day=jan1.getDay();
-  const firstSat=new Date(yr,0,1+(6-jan1Day+7)%7);
-  if(date<firstSat){
-    const py=yr-1;
-    const pj=new Date(py,0,1);
-    const pfs=new Date(py,0,1+(6-pj.getDay()+7)%7);
-    const wk=Math.round((date-pfs)/(7*86400000))+1;
-    return `${py}-W${String(wk).padStart(2,'0')}`;
-  }
-  const wk=Math.round((date-firstSat)/(7*86400000))+1;
-  return `${yr}-W${String(wk).padStart(2,'0')}`;
+function getWeekKey(d){return `${_weekYear}-W${String(_weekNum).padStart(2,'0')}`;}
+function getMonthKey(d){return `${_monthYear}-${String(_monthNum).padStart(2,'0')}`;}
+function fmtWeek(wk){
+  if(!wk) return '';
+  if(wk.startsWith('W')) return `الأسبوع ${parseInt(wk.substring(1))}`;
+  const[y,w]=wk.split('-W');return `الأسبوع ${parseInt(w)} — ${y}`;
 }
-function getMonthKey(d=new Date()){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;}
-function fmtWeek(wk){const[y,w]=wk.split('-W');return `الأسبوع ${parseInt(w)} / ${y}`;}
 function fmtMonth(mk){
+  if(!mk) return '';
+  if(mk.startsWith('M')) return `الشهر ${parseInt(mk.substring(1))}`;
   const[y,m]=mk.split('-');
   const names=['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
   return `${names[parseInt(m)-1]} ${y}`;
 }
+const MONTH_NAMES=['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
 function initials(name){const p=name.trim().split(' ');return p.length>=2?p[0][0]+p[1][0]:p[0].slice(0,2);}
 function showToast(msg,dur=2500){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),dur);}
 
@@ -852,6 +906,12 @@ async function handleLogin(){
   await _storageReady;
   loginBtn.textContent=origText;
   loginBtn.disabled=false;
+  // تحميل الأسبوع والشهر المحفوظين، أو استخدام التاريخ الحقيقي كافتراضي
+  const[_wn,_wy,_mn,_my]=await Promise.all([sGet('sl_week_num'),sGet('sl_week_year'),sGet('sl_month_num'),sGet('sl_month_year')]);
+  if(_wn!==null){_weekNum=parseInt(_wn);_weekYear=parseInt(_wy||new Date().getFullYear());}
+  else{const rw=calcRealWeek();_weekNum=rw.weekNum;_weekYear=rw.weekYear;}
+  if(_mn!==null){_monthNum=parseInt(_mn);_monthYear=parseInt(_my||new Date().getFullYear());}
+  else{const rm=calcRealMonth();_monthNum=rm.monthNum;_monthYear=rm.monthYear;}
 
   let users;
   try{ users=await loadUsers(); }
@@ -891,6 +951,7 @@ async function handleLogin(){
     document.getElementById('navAdmin').style.display='flex';
     document.getElementById('adminWelcome').textContent=`أهلاً ${currentUser.displayName} 👑`;
     document.getElementById('adminResetBar').classList.add('visible');
+    updateAdminWeekInfo();
   }
   buildForm();
   await refreshAll();
@@ -1078,7 +1139,7 @@ async function renderDash(){
   const wk=getWeekKey(),mo=getMonthKey();
   const mySubs=subs.filter(s=>s.userId===currentUser.id);
   const myWeek=mySubs.find(s=>s.week===wk);
-  const monthTotal=mySubs.filter(s=>s.month===mo).reduce((t,s)=>t+s.totalStudent+(s.totalOrg||0),0);
+  const monthTotal=mySubs.filter(s=>s.month===mo).reduce((t,s)=>t+s.totalStudent+(s.totalOrg||0)+(s.totalBonus||0),0);
   const ranked=getRanked(subs,'week');
   const myRank=ranked.findIndex(r=>r.userId===currentUser.id)+1;
   const total=ranked.length;
@@ -1089,12 +1150,19 @@ async function renderDash(){
   document.getElementById('rankBadge').textContent=myRank===1?'🥇 في القمة':myRank===2?'🥈 المركز الثاني':myRank===3?'🥉 المركز الثالث':myRank?`المركز ${myRank}`:'📊 ترتيبك';
   const msgs=[[1,'أنت في القمة! حافظ على مكانك 👑'],[2,'خطوة واحدة للقمة 💪'],[3,'تقدر توصل الأول! الطريق واضح 🔥'],[5,'أداء كويس، فيه فرص للتحسين 📈'],[100,'كل أسبوع فرصة جديدة، ابدأ هنا! 🚀']];
   document.getElementById('motivationMsg').textContent=myRank?(msgs.find(([t])=>myRank<=t)||msgs[msgs.length-1])[1]:'سجّل تقييمك الأسبوعي!';
-  const ws=myWeek?(myWeek.adminApproved?myWeek.totalStudent+(myWeek.totalOrg||0):null):null;
+  const ws=myWeek?(myWeek.adminApproved?myWeek.totalStudent+(myWeek.totalOrg||0)+(myWeek.totalBonus||0):null):null;
   document.getElementById('dashWeekScore').textContent=ws!==null?ws.toFixed(1):'–';
   document.getElementById('dashMonthScore').textContent=monthTotal>0?monthTotal.toFixed(1):'–';
   document.getElementById('dashOrg').textContent=myWeek?(myWeek.totalOrg!=null?myWeek.totalOrg:'⏳'):'–';
-  let streak=0;const wKeys=[...new Set(mySubs.map(s=>s.week))].sort().reverse();let wCur=getWeekKey();
-  for(const w of wKeys){if(w===wCur){streak++;const d=new Date();d.setDate(d.getDate()-7);wCur=getWeekKey(d);}else break;}
+  let streak=0;
+  const wKeys=[...new Set(mySubs.map(s=>s.week))].sort().reverse();
+  let expW=_weekNum, expY=_weekYear;
+  for(const w of wKeys){
+    const m=w.match(/^(\d{4})-W(\d+)$/);
+    if(m&&parseInt(m[1])===expY&&parseInt(m[2])===expW){
+      streak++;expW--;if(expW<1){expW=52;expY--;}
+    }else break;
+  }
   document.getElementById('dashStreak').textContent=streak||'–';
   const has=!!myWeek;
   document.getElementById('dashPillars').style.display=has?'block':'none';
@@ -1157,10 +1225,10 @@ function renderHistoryChart(mySubs){
   el.innerHTML='';
   if(!mySubs.length){el.innerHTML='<div style="color:var(--text-light);font-size:12px;text-align:center;width:100%;">لا توجد بيانات بعد</div>';return;}
   const sorted=[...mySubs].sort((a,b)=>a.week.localeCompare(b.week)).slice(-6);
-  const mx=Math.max(...sorted.map(s=>s.totalStudent+(s.totalOrg||0)),1);
+  const mx=Math.max(...sorted.map(s=>s.totalStudent+(s.totalOrg||0)+(s.totalBonus||0)),1);
   const wkNow=getWeekKey();
   sorted.forEach(s=>{
-    const sc=s.totalStudent+(s.totalOrg||0),pct=(sc/mx)*90;
+    const sc=s.totalStudent+(s.totalOrg||0)+(s.totalBonus||0),pct=(sc/mx)*90;
     const wrap=document.createElement('div');wrap.className='chart-bar-wrap';
     wrap.innerHTML=`<div style="font-size:10px;color:var(--gold-dark);font-weight:700;margin-bottom:2px;">${sc.toFixed(0)}</div><div class="chart-bar${s.week===wkNow?' highlight':''}" style="height:${pct}px;"></div><div class="chart-lbl">${s.week.split('-W')[1]}W</div>`;
     el.appendChild(wrap);
@@ -1201,7 +1269,17 @@ async function renderRanking(){
     </div>`;
   }).join('');
 }
-function switchRankView(v,el){currentRankView=v;document.querySelectorAll('.ranking-tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');renderRanking();}
+function switchRankView(v,el){
+  currentRankView=v;
+  document.querySelectorAll('.ranking-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  if(currentUser?.isAdmin){
+    document.getElementById('adminWeekControls').style.display=v==='week'?'block':'none';
+    document.getElementById('adminMonthControls').style.display=v==='month'?'block':'none';
+    updateAdminWeekInfo();
+  }
+  renderRanking();
+}
 
 // ══════════════════════════════════════════════════════════════
 //  ADMIN
@@ -1699,29 +1777,66 @@ async function refreshAll(){await renderDash();}
 // ══════════════════════════════════════════════════════════════
 async function resetWeekData(){
   if(!currentUser?.isAdmin) return;
-  const wk=getWeekKey();
-  if(!confirm(`⚠️ هتمسح كل تقييمات ${fmtWeek(wk)}!\nمينفعش ترجع تاني — متأكد؟`)) return;
-  const subs=await loadSubs();
-  await saveSubs(subs.filter(s=>s.week!==wk));
-  _subsCache=null;
-  showToast(`🗑️ تم مسح تقييمات ${fmtWeek(wk)}`);
-  await renderDash();
-  await renderRanking();
-  await loadAdminSubs();
-  await loadAdminReview();
+  let nw=_weekNum+1, ny=_weekYear;
+  if(nw>52){nw=1;ny++;}
+  const autoMonth=(nw%4===1);
+  let nm=_monthNum, nmy=_monthYear;
+  if(autoMonth){nm++;if(nm>12){nm=1;nmy++;}}
+  const wLabel=`${ny}-W${String(nw).padStart(2,'0')}`;
+  const msg=autoMonth
+    ?`▶️ بدء ${fmtWeek(wLabel)}\n🎉 الشهر سيتقدم تلقائياً: ${MONTH_NAMES[nm-1]} ${nmy}\nالبيانات القديمة محفوظة — متأكد؟`
+    :`▶️ بدء ${fmtWeek(wLabel)}\nالبيانات القديمة محفوظة — متأكد؟`;
+  if(!confirm(msg)) return;
+  _weekNum=nw;_weekYear=ny;
+  if(autoMonth){_monthNum=nm;_monthYear=nmy;}
+  await Promise.all([sSet('sl_week_num',_weekNum),sSet('sl_week_year',_weekYear),sSet('sl_month_num',_monthNum),sSet('sl_month_year',_monthYear)]);
+  updateAdminWeekInfo();
+  showToast(autoMonth?`✅ ${fmtWeek(getWeekKey())} — ${MONTH_NAMES[_monthNum-1]} ${_monthYear} 🎉`:`✅ ${fmtWeek(getWeekKey())}`);
+  await renderDash();await renderRanking();await loadAdminSubs();await loadAdminReview();
 }
 async function resetMonthData(){
   if(!currentUser?.isAdmin) return;
-  const mo=getMonthKey();
-  if(!confirm(`⚠️ هتمسح كل تقييمات ${fmtMonth(mo)}!\nمينفعش ترجع تاني — متأكد؟`)) return;
-  const subs=await loadSubs();
-  await saveSubs(subs.filter(s=>s.month!==mo));
-  _subsCache=null;
-  showToast(`🗑️ تم مسح تقييمات ${fmtMonth(mo)}`);
-  await renderDash();
-  await renderRanking();
-  await loadAdminSubs();
-  await loadAdminReview();
+  let nm=_monthNum+1, nmy=_monthYear;
+  if(nm>12){nm=1;nmy++;}
+  if(!confirm(`▶️ بدء ${MONTH_NAMES[nm-1]} ${nmy} يدوياً\nالبيانات القديمة محفوظة — متأكد؟`)) return;
+  _monthNum=nm;_monthYear=nmy;
+  await Promise.all([sSet('sl_month_num',_monthNum),sSet('sl_month_year',_monthYear)]);
+  updateAdminWeekInfo();
+  showToast(`✅ ${MONTH_NAMES[_monthNum-1]} ${_monthYear}`);
+  await renderDash();await renderRanking();await loadAdminSubs();await loadAdminReview();
+}
+async function setWeekNumManual(){
+  if(!currentUser?.isAdmin) return;
+  const wn=parseInt(document.getElementById('weekNumInput').value);
+  const wy=parseInt(document.getElementById('weekYearInput').value);
+  if(!wn||wn<1||wn>52){showToast('⚠️ الأسبوع بين 1 و 52!');return;}
+  if(!wy||wy<2020||wy>2099){showToast('⚠️ السنة غير صحيحة!');return;}
+  if(!confirm(`تحديد الأسبوع الحالي: ${fmtWeek(`${wy}-W${String(wn).padStart(2,'0')}`)}؟`)) return;
+  _weekNum=wn;_weekYear=wy;
+  await Promise.all([sSet('sl_week_num',_weekNum),sSet('sl_week_year',_weekYear)]);
+  updateAdminWeekInfo();showToast(`✅ ${fmtWeek(getWeekKey())}`);
+  await renderDash();await renderRanking();await loadAdminSubs();await loadAdminReview();
+}
+async function setMonthManual(){
+  if(!currentUser?.isAdmin) return;
+  const mn=parseInt(document.getElementById('monthSelect').value);
+  const my=parseInt(document.getElementById('monthYearInput').value);
+  if(!my||my<2020||my>2099){showToast('⚠️ السنة غير صحيحة!');return;}
+  if(!confirm(`تحديد الشهر الحالي: ${MONTH_NAMES[mn-1]} ${my}؟`)) return;
+  _monthNum=mn;_monthYear=my;
+  await Promise.all([sSet('sl_month_num',_monthNum),sSet('sl_month_year',_monthYear)]);
+  updateAdminWeekInfo();showToast(`✅ ${MONTH_NAMES[_monthNum-1]} ${_monthYear}`);
+  await renderDash();await renderRanking();await loadAdminSubs();await loadAdminReview();
+}
+function updateAdminWeekInfo(){
+  const wni=document.getElementById('weekNumInput');if(wni)wni.value=_weekNum;
+  const wyi=document.getElementById('weekYearInput');if(wyi)wyi.value=_weekYear;
+  const ms=document.getElementById('monthSelect');if(ms)ms.value=_monthNum;
+  const myi=document.getElementById('monthYearInput');if(myi)myi.value=_monthYear;
+  const wl=document.getElementById('weekCurrentLabel');
+  if(wl)wl.textContent=`الأسبوع الحالي: ${fmtWeek(getWeekKey())}`;
+  const ml=document.getElementById('monthCurrentLabel');
+  if(ml)ml.textContent=`الشهر الحالي: ${MONTH_NAMES[_monthNum-1]} ${_monthYear}`;
 }
 
 // ══════════════════════════════════════════════════════════════
